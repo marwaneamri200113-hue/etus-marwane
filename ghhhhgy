@@ -1,8 +1,0 @@
-streamlit
-pandas
-numpy
-tensorflow
-sklearn.model_selection
-sklearn.preprocessing
-tensorflow.keras.models
-tensorflow.keras.layers
