@@ -1,0 +1,135 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+# ==========================
+# Génération des données
+# ==========================
+
+np.random.seed(42)
+
+n = 500
+
+temperature_ext = np.random.randint(25, 45, n)
+temperature_moteur = np.random.randint(70, 125, n)
+kilometrage = np.random.randint(10000, 500000, n)
+age_bus = np.random.randint(1, 20, n)
+liquide = np.random.randint(20, 100, n)
+charge = np.random.randint(20, 100, n)
+
+surchauffe = (
+    (temperature_moteur > 105) &
+    (temperature_ext > 35) &
+    (liquide < 50)
+).astype(int)
+
+data = pd.DataFrame({
+    "Temperature_Ext": temperature_ext,
+    "Temperature_Moteur": temperature_moteur,
+    "Kilometrage": kilometrage,
+    "Age_Bus": age_bus,
+    "Liquide": liquide,
+    "Charge": charge,
+    "Surchauffe": surchauffe
+})
+
+# ==========================
+# Préparation des données
+# ==========================
+
+X = data.drop("Surchauffe", axis=1)
+y = data["Surchauffe"]
+
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.2,
+    random_state=42
+)
+
+# ==========================
+# Création du modèle
+# ==========================
+
+model = Sequential([
+    Dense(16, activation="relu"),
+    Dense(8, activation="relu"),
+    Dense(1, activation="sigmoid")
+])
+
+model.compile(
+    optimizer="adam",
+    loss="binary_crossentropy",
+    metrics=["accuracy"]
+)
+
+model.fit(
+    X_train,
+    y_train,
+    epochs=20,
+    batch_size=16,
+    verbose=0
+)
+
+# ==========================
+# Interface Streamlit
+# ==========================
+
+st.set_page_config(
+    page_title="Prédiction Surchauffe Bus",
+    page_icon="🚌",
+    layout="centered"
+)
+
+st.title("🚌 Prédiction du risque de surchauffe")
+st.write("### Entrez les informations du bus")
+
+temp_ext = st.slider("Température extérieure (°C)", 20, 50, 35)
+
+temp_moteur = st.slider("Température moteur (°C)", 70, 130, 95)
+
+km = st.number_input(
+    "Kilométrage",
+    min_value=10000,
+    max_value=500000,
+    value=200000,
+    step=1000
+)
+
+age = st.slider("Âge du bus (années)", 1, 20, 8)
+
+liquide = st.slider("Niveau du liquide de refroidissement (%)", 20, 100, 70)
+
+charge = st.slider("Charge du bus (%)", 20, 100, 60)
+
+if st.button("Prédire"):
+
+    nouveau_bus = pd.DataFrame({
+        "Temperature_Ext":[temp_ext],
+        "Temperature_Moteur":[temp_moteur],
+        "Kilometrage":[km],
+        "Age_Bus":[age],
+        "Liquide":[liquide],
+        "Charge":[charge]
+    })
+
+    nouveau_bus = scaler.transform(nouveau_bus)
+
+    prediction = model.predict(nouveau_bus, verbose=0)
+
+    probabilite = prediction[0][0] * 100
+
+    st.subheader(f"Probabilité de surchauffe : {probabilite:.1f}%")
+
+    if prediction[0][0] > 0.5:
+        st.error("⚠️ Risque élevé de surchauffe.")
+        st.write("➡️ Vérifier le circuit de refroidissement avant le départ.")
+    else:
+        st.success("✅ Aucun risque important détecté.")
