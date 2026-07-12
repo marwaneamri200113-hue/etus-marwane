@@ -1,0 +1,93 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+# Génération de données fictives
+np.random.seed(42)
+
+n = 500
+
+temperature_ext = np.random.randint(25, 45, n)
+temperature_moteur = np.random.randint(70, 125, n)
+kilometrage = np.random.randint(10000, 500000, n)
+age_bus = np.random.randint(1, 20, n)
+liquide = np.random.randint(20, 100, n)
+charge = np.random.randint(20, 100, n)
+
+# Création de la variable cible
+surchauffe = (
+    (temperature_moteur > 105) &
+    (temperature_ext > 35) &
+    (liquide < 50)
+).astype(int)
+
+# DataFrame
+data = pd.DataFrame({
+    "Temperature_Ext": temperature_ext,
+    "Temperature_Moteur": temperature_moteur,
+    "Kilometrage": kilometrage,
+    "Age_Bus": age_bus,
+    "Liquide": liquide,
+    "Charge": charge,
+    "Surchauffe": surchauffe
+})
+
+print(data.head())
+
+# Variables
+X = data.drop("Surchauffe", axis=1)
+y = data["Surchauffe"]
+
+# Normalisation
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
+
+# Séparation
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.2,
+    random_state=42
+)
+
+# Réseau de neurones
+model = Sequential([
+    Dense(16, activation='relu'),
+    Dense(8, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+# Entraînement
+model.fit(X_train, y_train, epochs=20, batch_size=16)
+
+# Évaluation
+loss, accuracy = model.evaluate(X_test, y_test)
+print("Précision :", accuracy)
+
+# Exemple de prédiction
+nouveau_bus = pd.DataFrame({
+    "Temperature_Ext":[39],
+    "Temperature_Moteur":[112],
+    "Kilometrage":[280000],
+    "Age_Bus":[12],
+    "Liquide":[35],
+    "Charge":[90]
+})
+
+nouveau_bus = scaler.transform(nouveau_bus)
+
+prediction = model.predict(nouveau_bus)
+
+if prediction[0][0] > 0.5:
+    print("⚠️ Risque de surchauffe")
+else:
+    print("✅ Pas de risque")
